@@ -30,6 +30,7 @@ class Game {
         this.timerValue = config.timerDuration;
         this.timerElement = document.getElementById('timer');
         this.timerInterval = null;
+        this.isTimerPaused = false;
         
         this.inputHandler = new InputHandler(this.board.boardElement, this.onSwap.bind(this), this.onSmash.bind(this));
         
@@ -41,6 +42,8 @@ class Game {
 
     startTimer() {
         this.timerInterval = setInterval(() => {
+            if (this.isTimerPaused) return;
+
             this.timerValue--;
             this.timerElement.textContent = this.timerValue;
             if (this.timerValue <= 0) {
@@ -58,6 +61,14 @@ class Game {
         this.timerElement.textContent = this.timerValue;
     }
 
+    pauseTimer() {
+        this.isTimerPaused = true;
+    }
+
+    resumeTimer() {
+        this.isTimerPaused = false;
+    }
+
     updateSmashUI() {
         this.smashValueElement.textContent = this.smashValue;
     }
@@ -67,16 +78,18 @@ class Game {
         this.scoreElement.textContent = this.score;
     }
 
-    onMatch(matchedCandies) {
+    onMatch(matchedCandies, isPlayerMove) {
         playSound('match.mp3');
         this.updateScore(matchedCandies.length * config.pointsPerCandy);
         
-        this.smashValue++;
-        if (this.smashValue > 12) {
-            this.smashValue = 12;
+        if (isPlayerMove) {
+            this.smashValue++;
+            if (this.smashValue > 12) {
+                this.smashValue = 12;
+            }
+            this.updateSmashUI();
+            this.resetTimer();
         }
-        this.updateSmashUI();
-        this.resetTimer();
 
         if (matchedCandies.length >= 5) {
             confetti({
@@ -90,6 +103,7 @@ class Game {
     async onSmash(candy) {
         if (this.isProcessing || this.smashValue <= 0) return;
         this.isProcessing = true;
+        this.pauseTimer();
 
         const r = parseInt(candy.dataset.row);
         const c = parseInt(candy.dataset.col);
@@ -123,6 +137,7 @@ class Game {
 
         if (this.smashValue < smashCost || smashCost === 0) {
             this.isProcessing = false;
+            this.resumeTimer();
             return;
         }
         
@@ -133,11 +148,13 @@ class Game {
         await this.board.smashCandies(Array.from(candiesToSmash));
 
         this.isProcessing = false;
+        this.resumeTimer();
     }
 
     async onSwap(candy1, candy2) {
         if (this.isProcessing) return;
         this.isProcessing = true;
+        this.pauseTimer();
         
         const candy1Powerup = candy1.dataset.powerup;
         const candy2Powerup = candy2.dataset.powerup;
@@ -149,6 +166,7 @@ class Game {
             // We don't need to swap visually, just activate
             await this.board.activateRainbowPowerup(rainbowCandy, otherCandy);
             this.isProcessing = false;
+            this.resumeTimer();
             return;
         }
         
@@ -161,6 +179,7 @@ class Game {
         }
         
         this.isProcessing = false;
+        this.resumeTimer();
     }
 }
 

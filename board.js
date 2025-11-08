@@ -216,7 +216,7 @@ export default class Board {
         }
 
         if (candiesToRemove.size > 0) {
-            if(!isInitializing) this.onMatch(Array.from(candiesToRemove));
+            if(!isInitializing) this.onMatch(Array.from(candiesToRemove), !!swappedCandies);
     
             for (const candy of candiesToRemove) {
                 candy.classList.add('matched');
@@ -261,7 +261,7 @@ export default class Board {
     async smashCandies(candiesToSmash) {
         if (candiesToSmash.length === 0) return;
         
-        this.onMatch(candiesToSmash);
+        this.onMatch(candiesToSmash, true);
 
         for (const candy of candiesToSmash) {
             candy.classList.add('matched'); // Reuse matched animation
@@ -297,7 +297,7 @@ export default class Board {
         }
 
         if (candiesToRemove.size > 0) {
-            this.onMatch(Array.from(candiesToRemove));
+            this.onMatch(Array.from(candiesToRemove), true);
 
             for (const candy of candiesToRemove) {
                 candy.classList.add('matched');
