@@ -13,10 +13,13 @@ body {
 #game-container {
     text-align: center;
     background: #ffebf8;
-    padding: 20px;
+    padding: 10px;
     border-radius: 20px;
     box-shadow: 0 0 20px rgba(0,0,0,0.2);
     border: 5px solid #fff;
+    width: 95vw;
+    max-width: 540px;
+    box-sizing: border-box;
 }
 
 h1 {
@@ -27,8 +30,8 @@ h1 {
 .info {
     display: flex;
     justify-content: space-around;
-    margin-bottom: 20px;
-    font-size: 1.5em;
+    margin-bottom: 10px;
+    font-size: 1.2em;
     color: #5c3c54;
 }
 
@@ -39,6 +42,8 @@ h1 {
     position: relative;
     box-shadow: inset 0 0 10px rgba(0,0,0,0.1);
     border-radius: 10px;
+    width: 100%;
+    aspect-ratio: 1 / 1;
 }
 
 .candy {
