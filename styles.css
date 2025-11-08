@@ -1,0 +1,64 @@
+body {
+    font-family: 'Comic Sans MS', 'Chalkboard SE', 'Marker Felt', sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background-color: #f0c4e4;
+    margin: 0;
+    overflow: hidden;
+    touch-action: none;
+}
+
+#game-container {
+    text-align: center;
+    background: #ffebf8;
+    padding: 20px;
+    border-radius: 20px;
+    box-shadow: 0 0 20px rgba(0,0,0,0.2);
+    border: 5px solid #fff;
+}
+
+h1 {
+    color: #d63384;
+    text-shadow: 2px 2px #fff;
+}
+
+.info {
+    display: flex;
+    justify-content: space-around;
+    margin-bottom: 20px;
+    font-size: 1.5em;
+    color: #5c3c54;
+}
+
+#game-board {
+    display: grid;
+    border: 5px solid #e7a5d3;
+    background-color: rgba(255, 255, 255, 0.5);
+    position: relative;
+    box-shadow: inset 0 0 10px rgba(0,0,0,0.1);
+    border-radius: 10px;
+}
+
+.candy {
+    width: 100%;
+    height: 100%;
+    background-size: 80%;
+    background-repeat: no-repeat;
+    background-position: center;
+    cursor: pointer;
+    position: absolute;
+    transition: top 0.3s ease, left 0.3s ease, transform 0.2s ease, opacity 0.3s ease;
+    will-change: top, left, transform; /* Performance hint for browsers */
+}
+
+.candy.selected {
+    transform: scale(1.1);
+    filter: drop-shadow(0 0 5px yellow);
+}
+
+.candy.matched {
+    transform: scale(0);
+    opacity: 0;
+}
