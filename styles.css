@@ -88,6 +88,30 @@ h1 {
     transition: height 0.5s ease-out;
 }
 
+#game-board-container {
+    position: relative;
+}
+
+#combo-display {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.8);
+    color: white;
+    font-size: 4em;
+    font-weight: bold;
+    z-index: 100;
+    text-shadow: 3px 3px 0 #d63384, -1px -1px 0 #d63384, 1px -1px 0 #d63384, -1px 1px 0 #d63384, 1px 1px 0 #d63384;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease-out, transform 0.2s ease-out;
+}
+
+#combo-display.visible {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.2);
+}
+
 #game-board {
     display: grid;
     border: 5px solid #e7a5d3;

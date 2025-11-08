@@ -18,12 +18,22 @@ const config = {
     initialSmashValue: 0
 };
 
+const POSITIVE_FEEDBACK_SOUNDS = [
+    'nice_swipe.mp3',
+    'tasty_trio.mp3',
+    'good_move.mp3'
+];
+
 class Game {
     constructor() {
         this.board = new Board(config.boardSize, config.candyTypes, this.onMatch.bind(this));
         this.score = 0;
         this.scoreElement = document.getElementById('score');
         this.isProcessing = false;
+
+        this.comboCount = 0;
+        this.comboDisplay = document.getElementById('combo-display');
+        this.comboTimeout = null;
 
         this.smashValue = config.initialSmashValue;
         this.smashProgress = 0; // 0, 0.5
@@ -73,6 +83,18 @@ class Game {
         this.isTimerPaused = false;
     }
 
+    updateComboUI() {
+        if (this.comboCount < 2) return;
+
+        this.comboDisplay.textContent = `Combo x${this.comboCount}`;
+        this.comboDisplay.classList.add('visible');
+
+        clearTimeout(this.comboTimeout);
+        this.comboTimeout = setTimeout(() => {
+            this.comboDisplay.classList.remove('visible');
+        }, 1500);
+    }
+
     updateSmashUI() {
         this.smashValueElement.textContent = this.smashValue;
         const fillPercentage = this.smashProgress * 100; // 0 or 50
@@ -87,6 +109,21 @@ class Game {
     onMatch(matchedCandies, isPlayerMove) {
         playSound('match.mp3');
         this.updateScore(matchedCandies.length * config.pointsPerCandy);
+        
+        this.comboCount++;
+        this.updateComboUI();
+
+        // Audio feedback
+        if (this.comboCount === 6) {
+            playSound('combo_6.mp3');
+        } else if (this.comboCount === 7) {
+            playSound('combo_7.mp3');
+        } else if (this.comboCount > 2) {
+             playSound('crunch_combo.mp3');
+        } else if (isPlayerMove) {
+            const randomSound = POSITIVE_FEEDBACK_SOUNDS[Math.floor(Math.random() * POSITIVE_FEEDBACK_SOUNDS.length)];
+            playSound(randomSound);
+        }
         
         if (isPlayerMove) {
             this.smashProgress += 0.5;
@@ -168,6 +205,10 @@ class Game {
         this.updateSmashUI();
         playSound('smash.mp3');
         
+        const smashSounds = ['smash_success.mp3', 'sweet_mash.mp3'];
+        const randomSmashSound = smashSounds[Math.floor(Math.random() * smashSounds.length)];
+        setTimeout(() => playSound(randomSmashSound), 200); // Play after the main smash sound
+        
         // Pass a flag to indicate this is a smash action
         await this.board.smashCandies(Array.from(candiesToSmash));
 
@@ -179,6 +220,7 @@ class Game {
         if (this.isProcessing) return;
         this.isProcessing = true;
         this.pauseTimer();
+        this.comboCount = 0; // Reset combo on new player move
         
         const candy1Powerup = candy1.dataset.powerup;
         const candy2Powerup = candy2.dataset.powerup;

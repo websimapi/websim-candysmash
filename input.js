@@ -24,8 +24,9 @@ export default class InputHandler {
         this.boundHandlePointerDown = this.handlePointerDown.bind(this);
         this.boundHandlePointerMove = this.handlePointerMove.bind(this);
         this.boundHandlePointerUp = this.handlePointerUp.bind(this);
-
-        this.boardElement.addEventListener('pointerdown', this.boundHandlePointerDown);
+        
+        // Listen on the container to catch events on candies properly
+        this.boardElement.parentElement.addEventListener('pointerdown', this.boundHandlePointerDown);
     }
 
     handlePointerDown(e) {

@@ -12,6 +12,8 @@ export default class Board {
     setupBoard() {
         this.boardElement.style.gridTemplateColumns = `repeat(${this.size}, 1fr)`;
         this.boardElement.style.gridTemplateRows = `repeat(${this.size}, 1fr)`;
+        this.boardElement.parentElement.style.width = this.boardElement.style.width;
+        this.boardElement.parentElement.style.height = this.boardElement.style.height;
         
         // Use clientWidth which reflects the actual rendered size on screen
         const boardWidth = this.boardElement.clientWidth;

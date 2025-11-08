@@ -107,4 +107,12 @@ window.addEventListener('load', () => {
     loadSound('match.mp3');
     loadSound('smash.mp3');
     loadSound(BGM_CONFIG.name); // Preload background music
+    loadSound('sweet_mash.mp3');
+    loadSound('nice_swipe.mp3');
+    loadSound('tasty_trio.mp3');
+    loadSound('crunch_combo.mp3');
+    loadSound('good_move.mp3');
+    loadSound('smash_success.mp3');
+    loadSound('combo_6.mp3');
+    loadSound('combo_7.mp3');
 });
