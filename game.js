@@ -72,6 +72,9 @@ class Game {
         this.updateScore(matchedCandies.length * config.pointsPerCandy);
         
         this.smashValue++;
+        if (this.smashValue > 12) {
+            this.smashValue = 12;
+        }
         this.updateSmashUI();
         this.resetTimer();
 
@@ -90,12 +93,21 @@ class Game {
 
         const r = parseInt(candy.dataset.row);
         const c = parseInt(candy.dataset.col);
-        const candiesToSmash = new Set([candy]);
+        const candiesToSmash = new Set();
+        let smashCost = 0;
 
-        if (this.smashValue >= 1 && this.smashValue <= 3) {
-            // Just the single candy is already in the set
+        if (this.smashValue >= 7 && this.smashValue <= 12) {
+            // 3x3 area centered on the candy
+            for (let i = r - 1; i <= r + 1; i++) {
+                for (let j = c - 1; j <= c + 1; j++) {
+                    if (this.board.isValid(i, j) && this.board.grid[i][j]) {
+                        candiesToSmash.add(this.board.grid[i][j]);
+                    }
+                }
+            }
+            smashCost = 3;
         } else if (this.smashValue >= 4 && this.smashValue <= 6) {
-            // 2x2 area around the candy
+            // 2x2 area starting from the candy (top-left)
             for (let i = r; i <= r + 1; i++) {
                 for (let j = c; j <= c + 1; j++) {
                     if (this.board.isValid(i, j) && this.board.grid[i][j]) {
@@ -103,9 +115,18 @@ class Game {
                     }
                 }
             }
+            smashCost = 2;
+        } else if (this.smashValue >= 1 && this.smashValue <= 3) {
+            candiesToSmash.add(candy);
+            smashCost = 1;
+        }
+
+        if (this.smashValue < smashCost || smashCost === 0) {
+            this.isProcessing = false;
+            return;
         }
         
-        this.smashValue--;
+        this.smashValue -= smashCost;
         this.updateSmashUI();
         playSound('smash.mp3');
         
