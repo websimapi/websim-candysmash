@@ -130,7 +130,7 @@ class Game {
                 }
             }
             smashCost = 2;
-        } else if (this.smashValue >= 1) { // Smash a single candy for any value >= 1
+        } else if (this.smashValue >= 1 && this.smashValue <= 3) {
             candiesToSmash.add(candy);
             smashCost = 1;
         }
