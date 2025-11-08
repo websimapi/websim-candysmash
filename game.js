@@ -48,8 +48,20 @@ class Game {
 
     async onSwap(candy1, candy2) {
         if (this.isProcessing) return;
-
         this.isProcessing = true;
+        
+        const candy1Powerup = candy1.dataset.powerup;
+        const candy2Powerup = candy2.dataset.powerup;
+
+        if (candy1Powerup === 'rainbow' || candy2Powerup === 'rainbow') {
+            const rainbowCandy = candy1Powerup === 'rainbow' ? candy1 : candy2;
+            const otherCandy = candy1Powerup === 'rainbow' ? candy2 : candy1;
+            
+            // We don't need to swap visually, just activate
+            await this.board.activateRainbowPowerup(rainbowCandy, otherCandy);
+            this.isProcessing = false;
+            return;
+        }
         
         await this.board.swapCandies(candy1, candy2);
         const isValidSwap = await this.board.processMatches(false, [candy1, candy2]);

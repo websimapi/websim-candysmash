@@ -180,26 +180,32 @@ export default class Board {
             }
         }
 
-        for (const group of matchGroups) {
-            // Power-up Creation
-            if (group.candies.length === 4 && !createdPowerup) {
-                 const isSwappedCandyInMatch = swappedCandies && group.candies.some(c => swappedCandies.includes(c));
-                 if (isSwappedCandyInMatch || !swappedCandies) { // create powerup if part of swap or during cascade
-                    createdPowerup = true;
-                    const powerupType = group.type === 'horizontal' ? 'col' : 'row';
-                    const candyToConvertToPowerup = swappedCandies ? (group.candies.find(c => swappedCandies.includes(c)) || group.candies[0]) : group.candies[0];
-                    
-                    candyToConvertToPowerup.dataset.powerup = powerupType;
-                    candyToConvertToPowerup.classList.add(`powerup-${powerupType}`);
-                    
-                    group.candies.forEach(c => {
-                        if (c !== candyToConvertToPowerup) {
-                            candiesToRemove.add(c);
-                        }
-                    });
+        // Sort groups by size to prioritize larger matches for power-ups
+        matchGroups.sort((a, b) => b.candies.length - a.candies.length);
 
-                    continue; // Skip adding the rest to removal
-                 }
+        for (const group of matchGroups) {
+            const isSwappedCandyInMatch = swappedCandies && group.candies.some(c => swappedCandies.includes(c));
+            const canCreatePowerup = isSwappedCandyInMatch || !swappedCandies;
+            const candyToConvertToPowerup = swappedCandies ? (group.candies.find(c => swappedCandies.includes(c)) || group.candies[0]) : group.candies[0];
+
+            // Power-up Creation
+            if (group.candies.length >= 5 && !createdPowerup && canCreatePowerup) {
+                createdPowerup = true;
+                candyToConvertToPowerup.dataset.powerup = 'rainbow';
+                candyToConvertToPowerup.style.backgroundImage = 'url(candy_chocolate.png)';
+                candyToConvertToPowerup.classList.add('powerup-rainbow');
+                // Don't change dataset.type, we need it if it's swapped with another powerup
+                group.candies.forEach(c => { if (c !== candyToConvertToPowerup) candiesToRemove.add(c); });
+                continue;
+            }
+            
+            if (group.candies.length === 4 && !createdPowerup && canCreatePowerup) {
+                createdPowerup = true;
+                const powerupType = group.type === 'horizontal' ? 'col' : 'row';
+                candyToConvertToPowerup.dataset.powerup = powerupType;
+                candyToConvertToPowerup.classList.add(`powerup-${powerupType}`);
+                group.candies.forEach(c => { if (c !== candyToConvertToPowerup) candiesToRemove.add(c); });
+                continue;
             }
             
             group.candies.forEach(c => candiesToRemove.add(c));
@@ -248,6 +254,43 @@ export default class Board {
         candy.classList.remove('powerup-row', 'powerup-col');
     }
     
+    async activateRainbowPowerup(rainbowCandy, otherCandy) {
+        const targetType = otherCandy.dataset.type;
+        const candiesToRemove = new Set();
+        candiesToRemove.add(rainbowCandy);
+
+        for (let r = 0; r < this.size; r++) {
+            for (let c = 0; c < this.size; c++) {
+                const candy = this.grid[r][c];
+                if (candy && candy.dataset.type === targetType) {
+                    candiesToRemove.add(candy);
+                }
+            }
+        }
+
+        if (candiesToRemove.size > 0) {
+            this.onMatch(Array.from(candiesToRemove));
+
+            for (const candy of candiesToRemove) {
+                candy.classList.add('matched');
+                const r = parseInt(candy.dataset.row);
+                const c = parseInt(candy.dataset.col);
+                if (this.grid[r] && this.grid[r][c] === candy) {
+                    this.grid[r][c] = null;
+                }
+            }
+
+            await new Promise(resolve => setTimeout(resolve, 300));
+            
+            candiesToRemove.forEach(candy => candy.remove());
+            
+            await this.dropCandies();
+            await this.fillBoard();
+            
+            await this.processMatches(false, null);
+        }
+    }
+
     async dropCandies() {
         for (let c = 0; c < this.size; c++) {
             let emptyRow = this.size - 1;
