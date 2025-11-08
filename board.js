@@ -38,6 +38,8 @@ export default class Board {
         candy.dataset.col = col;
         candy.dataset.type = type;
         candy.style.backgroundImage = `url(${type})`;
+        candy.style.width = `${this.candySize}px`;
+        candy.style.height = `${this.candySize}px`;
         
         if (isInitializing) {
             candy.style.top = `${row * this.candySize}px`;
