@@ -4,7 +4,7 @@ import { playSound } from './audio.js';
 import confetti from 'confetti';
 
 const config = {
-    boardSize: 8,
+    boardSize: 10,
     candyTypes: [
         'candy_red.png',
         'candy_blue.png',
@@ -66,4 +66,3 @@ class Game {
 window.addEventListener('load', () => {
     new Game();
 });
-
