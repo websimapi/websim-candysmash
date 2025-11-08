@@ -1,10 +1,13 @@
 export default class InputHandler {
-    constructor(boardElement, onSwap) {
+    constructor(boardElement, onSwap, onHold) {
         this.boardElement = boardElement;
         this.onSwap = onSwap;
+        this.onHold = onHold;
         this.startCandy = null;
         this.isSwapping = false;
         this.startPos = { x: 0, y: 0 };
+        this.holdTimeout = null;
+        this.moved = false;
 
         // Bind event handlers once to ensure they can be removed correctly
         this.boundHandlePointerDown = this.handlePointerDown.bind(this);
@@ -23,6 +26,16 @@ export default class InputHandler {
         this.startCandy = target;
         this.startPos.x = e.clientX;
         this.startPos.y = e.clientY;
+        this.moved = false;
+
+        this.holdTimeout = setTimeout(() => {
+            if (!this.moved && this.startCandy) {
+                this.onHold(this.startCandy);
+                // After a hold action, we don't want to do anything else
+                // So we release the pointer control logic
+                this.handlePointerUp(); 
+            }
+        }, 500); // 500ms for a hold
         
         // Listen for move and up events on the whole document to capture drags
         // that might go outside the game board.
@@ -35,9 +48,17 @@ export default class InputHandler {
 
         const dx = e.clientX - this.startPos.x;
         const dy = e.clientY - this.startPos.y;
+        const moveThreshold = 10;
+
+        if (Math.abs(dx) > moveThreshold || Math.abs(dy) > moveThreshold) {
+            this.moved = true;
+            clearTimeout(this.holdTimeout);
+            this.holdTimeout = null;
+        }
+
         const swipeThreshold = 20; // Minimum pixels to be considered a swipe
 
-        if (Math.abs(dx) > swipeThreshold || Math.abs(dy) > swipeThreshold) {
+        if (this.moved && (Math.abs(dx) > swipeThreshold || Math.abs(dy) > swipeThreshold)) {
             // A swipe has been detected, determine direction
             let endRow, endCol;
             const startRow = parseInt(this.startCandy.dataset.row);
@@ -67,10 +88,11 @@ export default class InputHandler {
     }
 
     handlePointerUp() {
+        clearTimeout(this.holdTimeout);
+        this.holdTimeout = null;
         // Clean up state and remove listeners
         this.startCandy = null;
         document.removeEventListener('pointermove', this.boundHandlePointerMove);
         document.removeEventListener('pointerup', this.boundHandlePointerUp);
     }
 }
-

@@ -34,5 +34,5 @@ export function playSound(name) {
 // Preload common sounds
 window.addEventListener('load', () => {
     loadSound('match.mp3');
+    loadSound('smash.mp3');
 });
-

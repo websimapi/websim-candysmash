@@ -45,6 +45,36 @@ h1 {
     color: #5c3c54;
 }
 
+#game-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 10px;
+    margin-bottom: 10px;
+    color: #5c3c54;
+    font-size: 1.2em;
+}
+
+#smash-container {
+    text-align: center;
+}
+
+#smash-button {
+    width: 50px;
+    height: 50px;
+    background-color: #d63384;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    font-size: 1.5em;
+    font-weight: bold;
+    border: 3px solid white;
+    box-shadow: 0 4px 0 #a62867, 0 5px 10px rgba(0,0,0,0.2);
+    cursor: default;
+}
+
 #game-board {
     display: grid;
     border: 5px solid #e7a5d3;

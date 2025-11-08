@@ -82,6 +82,10 @@ export default class Board {
         return new Promise(resolve => setTimeout(resolve, 300));
     }
 
+    isValid(row, col) {
+        return row >= 0 && row < this.size && col >= 0 && col < this.size;
+    }
+
     findAllMatches() {
         const matches = new Set();
         // Horizontal matches
@@ -252,6 +256,30 @@ export default class Board {
         }
         delete candy.dataset.powerup;
         candy.classList.remove('powerup-row', 'powerup-col');
+    }
+
+    async smashCandies(candiesToSmash) {
+        if (candiesToSmash.length === 0) return;
+        
+        this.onMatch(candiesToSmash);
+
+        for (const candy of candiesToSmash) {
+            candy.classList.add('matched'); // Reuse matched animation
+            const r = parseInt(candy.dataset.row);
+            const c = parseInt(candy.dataset.col);
+            if (this.grid[r] && this.grid[r][c] === candy) {
+                this.grid[r][c] = null;
+            }
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        candiesToSmash.forEach(candy => candy.remove());
+        
+        await this.dropCandies();
+        await this.fillBoard();
+        
+        await this.processMatches(false, null);
     }
     
     async activateRainbowPowerup(rainbowCandy, otherCandy) {
