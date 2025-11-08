@@ -2,10 +2,16 @@ export default class InputHandler {
     constructor(boardElement, onSwap) {
         this.boardElement = boardElement;
         this.onSwap = onSwap;
-        this.selectedCandy = null;
+        this.startCandy = null;
         this.isSwapping = false;
+        this.startPos = { x: 0, y: 0 };
 
-        this.boardElement.addEventListener('pointerdown', this.handlePointerDown.bind(this));
+        // Bind event handlers once to ensure they can be removed correctly
+        this.boundHandlePointerDown = this.handlePointerDown.bind(this);
+        this.boundHandlePointerMove = this.handlePointerMove.bind(this);
+        this.boundHandlePointerUp = this.handlePointerUp.bind(this);
+
+        this.boardElement.addEventListener('pointerdown', this.boundHandlePointerDown);
     }
 
     handlePointerDown(e) {
@@ -14,31 +20,57 @@ export default class InputHandler {
         const target = e.target;
         if (!target.classList.contains('candy')) return;
         
-        if (!this.selectedCandy) {
-            this.selectedCandy = target;
-            this.selectedCandy.classList.add('selected');
-        } else {
-            // Check if adjacent
-            const r1 = parseInt(this.selectedCandy.dataset.row);
-            const c1 = parseInt(this.selectedCandy.dataset.col);
-            const r2 = parseInt(target.dataset.row);
-            const c2 = parseInt(target.dataset.col);
+        this.startCandy = target;
+        this.startPos.x = e.clientX;
+        this.startPos.y = e.clientY;
+        
+        // Listen for move and up events on the whole document to capture drags
+        // that might go outside the game board.
+        document.addEventListener('pointermove', this.boundHandlePointerMove);
+        document.addEventListener('pointerup', this.boundHandlePointerUp);
+    }
 
-            const isAdjacent = Math.abs(r1 - r2) + Math.abs(c1 - c2) === 1;
+    handlePointerMove(e) {
+        if (!this.startCandy) return;
 
-            if (isAdjacent && target !== this.selectedCandy) {
+        const dx = e.clientX - this.startPos.x;
+        const dy = e.clientY - this.startPos.y;
+        const swipeThreshold = 20; // Minimum pixels to be considered a swipe
+
+        if (Math.abs(dx) > swipeThreshold || Math.abs(dy) > swipeThreshold) {
+            // A swipe has been detected, determine direction
+            let endRow, endCol;
+            const startRow = parseInt(this.startCandy.dataset.row);
+            const startCol = parseInt(this.startCandy.dataset.col);
+
+            if (Math.abs(dx) > Math.abs(dy)) { // Horizontal swipe
+                endRow = startRow;
+                endCol = startCol + (dx > 0 ? 1 : -1);
+            } else { // Vertical swipe
+                endRow = startRow + (dy > 0 ? 1 : -1);
+                endCol = startCol;
+            }
+
+            // Find the candy at the target position
+            const targetCandy = document.querySelector(`.candy[data-row='${endRow}'][data-col='${endCol}']`);
+
+            if (targetCandy) {
                 this.isSwapping = true;
-                this.selectedCandy.classList.remove('selected');
-                this.onSwap(this.selectedCandy, target).then(() => {
+                this.onSwap(this.startCandy, targetCandy).then(() => {
                     this.isSwapping = false;
                 });
-                this.selectedCandy = null;
-            } else {
-                this.selectedCandy.classList.remove('selected');
-                this.selectedCandy = target;
-                this.selectedCandy.classList.add('selected');
             }
+
+            // The swipe action is complete, so we clean up immediately
+            this.handlePointerUp();
         }
+    }
+
+    handlePointerUp() {
+        // Clean up state and remove listeners
+        this.startCandy = null;
+        document.removeEventListener('pointermove', this.boundHandlePointerMove);
+        document.removeEventListener('pointerup', this.boundHandlePointerUp);
     }
 }
 
