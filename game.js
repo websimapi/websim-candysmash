@@ -26,7 +26,9 @@ class Game {
         this.isProcessing = false;
 
         this.smashValue = config.initialSmashValue;
+        this.smashProgress = 0; // 0, 0.5
         this.smashValueElement = document.getElementById('smash-value');
+        this.smashFluidElement = document.getElementById('smash-fluid');
         this.timerValue = config.timerDuration;
         this.timerElement = document.getElementById('timer');
         this.timerInterval = null;
@@ -51,6 +53,8 @@ class Game {
                     this.smashValue--;
                     this.updateSmashUI();
                 }
+                this.smashProgress = 0; // Reset progress if timer runs out
+                this.updateSmashUI();
                 this.resetTimer();
             }
         }, 1000);
@@ -71,6 +75,8 @@ class Game {
 
     updateSmashUI() {
         this.smashValueElement.textContent = this.smashValue;
+        const fillPercentage = this.smashProgress * 100; // 0 or 50
+        this.smashFluidElement.style.height = `${fillPercentage}%`;
     }
 
     updateScore(points) {
@@ -83,11 +89,28 @@ class Game {
         this.updateScore(matchedCandies.length * config.pointsPerCandy);
         
         if (isPlayerMove) {
-            this.smashValue++;
-            if (this.smashValue > 12) {
-                this.smashValue = 12;
-            }
+            this.smashProgress += 0.5;
             this.updateSmashUI();
+
+            if (this.smashProgress >= 1) {
+                // Animate fill, update value, then animate empty
+                this.smashFluidElement.style.transition = 'height 0.3s ease-in';
+                this.smashFluidElement.style.height = '100%';
+
+                setTimeout(() => {
+                    if (this.smashValue < 12) {
+                        this.smashValue++;
+                    }
+                    this.smashValueElement.textContent = this.smashValue;
+                    this.smashProgress = 0;
+                    
+                    setTimeout(() => {
+                        this.smashFluidElement.style.transition = 'height 0.5s ease-out';
+                        this.updateSmashUI();
+                    }, 200); // Wait a moment before draining
+                }, 300); // Duration of the fill animation
+            }
+            
             this.resetTimer();
         }
 

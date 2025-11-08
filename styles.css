@@ -62,7 +62,7 @@ h1 {
 #smash-button {
     width: 50px;
     height: 50px;
-    background-color: #d63384;
+    background-color: #f0c4e4;
     border-radius: 50%;
     display: flex;
     justify-content: center;
@@ -73,6 +73,25 @@ h1 {
     border: 3px solid white;
     box-shadow: 0 4px 0 #a62867, 0 5px 10px rgba(0,0,0,0.2);
     cursor: default;
+    position: relative;
+    overflow: hidden;
+}
+
+#smash-value {
+    position: relative;
+    z-index: 2;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+}
+
+#smash-fluid {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 0%;
+    background-color: #d63384;
+    z-index: 1;
+    transition: height 0.5s ease-out;
 }
 
 #game-board {
