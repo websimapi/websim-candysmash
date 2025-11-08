@@ -23,26 +23,15 @@ body {
 }
 
 h1 {
-    color: #d63384;
-    text-shadow: 2px 2px #fff;
-    margin-bottom: 0;
+    display: none;
 }
 
 .subtitle {
-    margin-top: -5px;
-    margin-bottom: 10px;
-    font-size: 1.5em;
-    color: #d63384;
-    opacity: 0.9;
-    text-shadow: 1px 1px #fff;
+    display: none;
 }
 
 .info {
-    display: flex;
-    justify-content: space-around;
-    margin-bottom: 10px;
-    font-size: 1.2em;
-    color: #5c3c54;
+    display: none;
 }
 
 #game-footer {
@@ -53,6 +42,11 @@ h1 {
     margin-bottom: 10px;
     color: #5c3c54;
     font-size: 1.2em;
+}
+
+#score-container {
+    color: #5c3c54;
+    font-size: 1em; /* Adjusted to fit the bar */
 }
 
 #smash-container {
