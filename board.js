@@ -261,7 +261,8 @@ export default class Board {
     async smashCandies(candiesToSmash) {
         if (candiesToSmash.length === 0) return;
         
-        this.onMatch(candiesToSmash, true);
+        // This is a smash, not a player-made match, so isPlayerMove is false.
+        this.onMatch(candiesToSmash, false);
 
         for (const candy of candiesToSmash) {
             candy.classList.add('matched'); // Reuse matched animation

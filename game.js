@@ -145,6 +145,7 @@ class Game {
         this.updateSmashUI();
         playSound('smash.mp3');
         
+        // Pass a flag to indicate this is a smash action
         await this.board.smashCandies(Array.from(candiesToSmash));
 
         this.isProcessing = false;
