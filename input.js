@@ -1,3 +1,14 @@
+import { playBackgroundMusic } from './audio.js';
+
+let musicStarted = false;
+
+function startMusicOnce() {
+    if (!musicStarted) {
+        playBackgroundMusic();
+        musicStarted = true;
+    }
+}
+
 export default class InputHandler {
     constructor(boardElement, onSwap, onHold) {
         this.boardElement = boardElement;
@@ -18,6 +29,8 @@ export default class InputHandler {
     }
 
     handlePointerDown(e) {
+        startMusicOnce(); // Start music on the first tap/click
+
         if (this.isSwapping) return;
 
         const target = e.target;
