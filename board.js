@@ -110,31 +110,142 @@ export default class Board {
         }
         return Array.from(matches);
     }
+    
+    findMatchGroups() {
+        const groups = [];
+        const visited = new Set();
 
-    async processMatches(isInitializing = false) {
-        let matches = this.findAllMatches();
-        if (matches.length === 0) return isInitializing;
+        for (let r = 0; r < this.size; r++) {
+            for (let c = 0; c < this.size; c++) {
+                const candy = this.grid[r][c];
+                if (!candy || visited.has(candy)) continue;
 
-        if(!isInitializing) this.onMatch(matches);
+                // Horizontal check
+                const horizontalMatch = [candy];
+                for (let i = c + 1; i < this.size; i++) {
+                    const nextCandy = this.grid[r][i];
+                    if (nextCandy && nextCandy.dataset.type === candy.dataset.type) {
+                        horizontalMatch.push(nextCandy);
+                    } else {
+                        break;
+                    }
+                }
+                if (horizontalMatch.length >= 3) {
+                    groups.push({ candies: horizontalMatch, type: 'horizontal' });
+                    horizontalMatch.forEach(c => visited.add(c));
+                }
 
-        // Remove matched candies
-        for (const candy of matches) {
-            candy.classList.add('matched');
-            const r = parseInt(candy.dataset.row);
-            const c = parseInt(candy.dataset.col);
-            this.grid[r][c] = null;
+                // Vertical check
+                const verticalMatch = [candy];
+                for (let i = r + 1; i < this.size; i++) {
+                    const nextCandy = this.grid[i][c];
+                    if (nextCandy && nextCandy.dataset.type === candy.dataset.type) {
+                        verticalMatch.push(nextCandy);
+                    } else {
+                        break;
+                    }
+                }
+                if (verticalMatch.length >= 3) {
+                    groups.push({ candies: verticalMatch, type: 'vertical' });
+                    verticalMatch.forEach(c => visited.add(c));
+                }
+            }
+        }
+        return groups;
+    }
+
+    async processMatches(isInitializing = false, swappedCandies = null) {
+        if (isInitializing) { // Fallback for initialization
+            const initialMatches = this.findAllMatches();
+            if (initialMatches.length === 0) return;
+            initialMatches.forEach(c => this.grid[c.dataset.row][c.dataset.col] = null);
+            initialMatches.forEach(c => c.remove());
+            await this.dropCandies();
+            await this.fillBoard();
+            return this.processMatches(true);
         }
 
-        await new Promise(resolve => setTimeout(resolve, 300));
-        
-        matches.forEach(candy => candy.remove());
-        
-        await this.dropCandies();
-        await this.fillBoard();
-        
-        // Recursively check for new matches
-        await this.processMatches();
+        const matchGroups = this.findMatchGroups();
+        if (matchGroups.length === 0) return false;
+
+        const candiesToRemove = new Set();
+        let createdPowerup = false;
+
+        for (const group of matchGroups) {
+            // Check for powerup activation
+            for (const candy of group.candies) {
+                if (candy.dataset.powerup) {
+                    this.activatePowerup(candy, candiesToRemove);
+                }
+            }
+        }
+
+        for (const group of matchGroups) {
+            // Power-up Creation
+            if (group.candies.length === 4 && !createdPowerup) {
+                 const isSwappedCandyInMatch = swappedCandies && group.candies.some(c => swappedCandies.includes(c));
+                 if (isSwappedCandyInMatch || !swappedCandies) { // create powerup if part of swap or during cascade
+                    createdPowerup = true;
+                    const powerupType = group.type === 'horizontal' ? 'col' : 'row';
+                    const candyToConvertToPowerup = swappedCandies ? (group.candies.find(c => swappedCandies.includes(c)) || group.candies[0]) : group.candies[0];
+                    
+                    candyToConvertToPowerup.dataset.powerup = powerupType;
+                    candyToConvertToPowerup.classList.add(`powerup-${powerupType}`);
+                    
+                    group.candies.forEach(c => {
+                        if (c !== candyToConvertToPowerup) {
+                            candiesToRemove.add(c);
+                        }
+                    });
+
+                    continue; // Skip adding the rest to removal
+                 }
+            }
+            
+            group.candies.forEach(c => candiesToRemove.add(c));
+        }
+
+        if (candiesToRemove.size > 0) {
+            if(!isInitializing) this.onMatch(Array.from(candiesToRemove));
+    
+            for (const candy of candiesToRemove) {
+                candy.classList.add('matched');
+                const r = parseInt(candy.dataset.row);
+                const c = parseInt(candy.dataset.col);
+                if (this.grid[r] && this.grid[r][c] === candy) {
+                    this.grid[r][c] = null;
+                }
+            }
+    
+            await new Promise(resolve => setTimeout(resolve, 300));
+            
+            candiesToRemove.forEach(candy => candy.remove());
+            
+            await this.dropCandies();
+            await this.fillBoard();
+            
+            await this.processMatches(isInitializing, null);
+        }
+
         return true;
+    }
+
+    activatePowerup(candy, candiesToRemove) {
+        const r = parseInt(candy.dataset.row);
+        const c = parseInt(candy.dataset.col);
+        candiesToRemove.add(candy);
+
+        if (candy.dataset.powerup === 'row') {
+            for (let i = 0; i < this.size; i++) {
+                if (this.grid[r][i]) candiesToRemove.add(this.grid[r][i]);
+            }
+        } else if (candy.dataset.powerup === 'col') {
+            for (let i = 0; i < this.size; i++) {
+                if (this.grid[i][c]) candiesToRemove.add(this.grid[i][c]);
+            }
+        }
+        delete candy.dataset.powerup;
+        candy.classList.remove('powerup-row', 'powerup-col');
     }
     
     async dropCandies() {

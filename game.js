@@ -52,7 +52,7 @@ class Game {
         this.isProcessing = true;
         
         await this.board.swapCandies(candy1, candy2);
-        const isValidSwap = await this.board.processMatches();
+        const isValidSwap = await this.board.processMatches(false, [candy1, candy2]);
 
         if (!isValidSwap) {
             // If no matches, swap back

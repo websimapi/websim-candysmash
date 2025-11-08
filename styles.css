@@ -65,3 +65,29 @@ h1 {
     transform: scale(0);
     opacity: 0;
 }
+
+.candy.powerup-row::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 10%;
+    right: 10%;
+    height: 10%;
+    background-color: rgba(255, 255, 255, 0.7);
+    border-radius: 5px;
+    transform: translateY(-50%);
+    box-shadow: 0 0 4px white;
+}
+
+.candy.powerup-col::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 10%;
+    bottom: 10%;
+    width: 10%;
+    background-color: rgba(255, 255, 255, 0.7);
+    border-radius: 5px;
+    transform: translateX(-50%);
+    box-shadow: 0 0 4px white;
+}
