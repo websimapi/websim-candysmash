@@ -15,7 +15,7 @@ const config = {
     ],
     pointsPerCandy: 10,
     timerDuration: 15,
-    initialSmashValue: 3
+    initialSmashValue: 0
 };
 
 class Game {
