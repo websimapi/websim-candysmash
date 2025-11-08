@@ -29,9 +29,11 @@ h1 {
 }
 
 .subtitle {
-    margin-top: 0;
-    color: #5c3c54;
-    font-size: 1.5em; /* A bit larger than info but smaller than h1 */
+    margin-top: -5px;
+    margin-bottom: 10px;
+    font-size: 1.5em;
+    color: #d63384;
+    opacity: 0.9;
     text-shadow: 1px 1px #fff;
 }
 
