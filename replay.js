@@ -9,6 +9,7 @@ export default class Replay {
         this.replayTimeouts = [];
         this.replayBgmControl = null;
         this.controlsTimeout = null;
+        this.comboTimeout = null;
         this.state = {
             isPlaying: false,
             isPaused: false,
@@ -62,6 +63,12 @@ export default class Replay {
         modal.classList.add('hidden');
         this.stop(); // Use stop to properly clean up
 
+        // Remove combo display if it exists
+        const comboDisplay = document.getElementById('replay-combo-display');
+        if (comboDisplay) {
+            comboDisplay.remove();
+        }
+
         // Force cleanup of any lingering replay candy elements
         const lingeringCandies = document.querySelectorAll('.replay-candy');
         lingeringCandies.forEach(candy => candy.remove());
@@ -112,7 +119,7 @@ export default class Replay {
         this.state.actions = [...recording.actions];
         this.state.currentReplayBoard = replayBoard; // Store for resume
         playPauseButton.innerHTML = '&#10074;&#10074;'; // Pause icon
-        playPauseButton.classList.remove('playing');
+        playPauseButton.classList.remove('visible');
         
         this.showControls(); // Show controls for 1 second at the start
 
@@ -164,6 +171,8 @@ export default class Replay {
                     document.getElementById('replay-board').parentElement.classList.add('rainbow-mode');
                 } else if (action.type === 'endRainbow') {
                     document.getElementById('replay-board').parentElement.classList.remove('rainbow-mode');
+                } else if (action.type === 'comboUpdate') {
+                    this.updateReplayCombo(action.count);
                 } else if (action.type === 'startBGM' && !this.replayBgmControl) {
                     this.replayBgmControl = await playBackgroundMusic(true);
                 }
@@ -225,6 +234,41 @@ export default class Replay {
         playPauseButton.classList.remove('visible');
     }
 
+    updateReplayCombo(count) {
+        let comboDisplay = document.getElementById('replay-combo-display');
+        if (!comboDisplay) {
+            comboDisplay = document.createElement('div');
+            comboDisplay.id = 'replay-combo-display';
+            // Mimic styles from CSS for consistency
+            comboDisplay.className = 'combo-display-base';
+            document.getElementById('replay-container').appendChild(comboDisplay);
+        }
+
+        clearTimeout(this.comboTimeout);
+
+        if (count < 2) {
+            comboDisplay.classList.remove('visible', 'rainbow');
+            return;
+        }
+        
+        const isRainbow = document.getElementById('replay-container').classList.contains('rainbow-mode');
+
+        comboDisplay.textContent = `Combo x${count}`;
+        comboDisplay.classList.add('visible');
+
+        if (isRainbow) {
+            comboDisplay.classList.add('rainbow');
+        } else {
+            comboDisplay.classList.remove('rainbow');
+        }
+
+        if (!isRainbow) {
+            this.comboTimeout = setTimeout(() => {
+                comboDisplay.classList.remove('visible');
+            }, 1500);
+        }
+    }
+
     stop() {
         this.replayTimeouts.forEach(clearTimeout);
         this.replayTimeouts = [];
@@ -233,6 +277,7 @@ export default class Replay {
             this.replayBgmControl = null;
         }
         clearTimeout(this.controlsTimeout);
+        clearTimeout(this.comboTimeout);
         this.state = { isPlaying: false, isPaused: false, pauseTime: 0, startTime: 0, actions: [], currentReplayBoard: null };
 
         const playPauseButton = document.getElementById('play-pause-button');

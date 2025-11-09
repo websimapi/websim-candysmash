@@ -198,6 +198,7 @@ class Game {
         this.updateScore(matchedCandies.length * config.pointsPerCandy);
         
         this.comboCount++;
+        if (this.isRecordingStarted) recorder.recordAction({ type: 'comboUpdate', count: this.comboCount });
         this.updateComboUI();
 
         if (this.comboCount >= 8 && !this.isRainbowMode) {
@@ -275,6 +276,7 @@ class Game {
         this.comboDisplay.classList.remove('rainbow');
         this.comboDisplay.classList.remove('visible');
         this.comboCount = 0;
+        if (this.isRecordingStarted) recorder.recordAction({ type: 'comboUpdate', count: this.comboCount });
         clearTimeout(this.rainbowComboTimeout);
         this.rainbowComboTimeout = null;
         recorder.recordAction({ type: 'endRainbow' });
@@ -345,6 +347,7 @@ class Game {
         this.pauseTimer();
         if (!this.isRainbowMode) {
             this.comboCount = 0; // Reset combo on new player move, unless in rainbow mode
+            if (this.isRecordingStarted) recorder.recordAction({ type: 'comboUpdate', count: this.comboCount });
         }
         
         const r1 = parseInt(candy1.dataset.row);
