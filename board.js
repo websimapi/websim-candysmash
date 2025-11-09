@@ -108,6 +108,36 @@ export default class Board {
         return this.pausableTimeout(300);
     }
 
+    getAffectedCandies(powerupCandy) {
+        const affected = new Set();
+        const r = parseInt(powerupCandy.dataset.row);
+        const c = parseInt(powerupCandy.dataset.col);
+        const powerupType = powerupCandy.dataset.powerup;
+
+        switch (powerupType) {
+            case 'row':
+                for (let i = 0; i < this.size; i++) {
+                    if (this.grid[r][i]) affected.add(this.grid[r][i]);
+                }
+                break;
+            case 'col':
+                for (let i = 0; i < this.size; i++) {
+                    if (this.grid[i][c]) affected.add(this.grid[i][c]);
+                }
+                break;
+            case 'bomb':
+                 for (let i = r - 1; i <= r + 1; i++) {
+                    for (let j = c - 1; j <= c + 1; j++) {
+                        if (this.isValid(i, j) && this.grid[i][j]) {
+                            affected.add(this.grid[i][j]);
+                        }
+                    }
+                }
+                break;
+        }
+        return Array.from(affected);
+    }
+
     async processMatches(isInitializing = false, swappedCandies = null) {
         const matchGroups = this.findMatchGroups();
 
@@ -145,13 +175,13 @@ export default class Board {
             }
         }
         
-        const candiesToRemove = new Set(totalMatchedCandies);
+        const allCandiesToClear = new Set(totalMatchedCandies);
 
         // Don't remove candies that are becoming powerups
         createdPowerups.forEach(p => {
             const candyToUpgrade = this.grid[p.row][p.col];
-            if (candyToUpgrade && candiesToRemove.has(candyToUpgrade)) {
-                candiesToRemove.delete(candyToUpgrade);
+            if (candyToUpgrade && allCandiesToClear.has(candyToUpgrade)) {
+                allCandiesToClear.delete(candyToUpgrade);
                 candyToUpgrade.dataset.powerup = p.type;
                 candyToUpgrade.classList.add(`powerup-${p.type}`);
                  if (p.type === 'rainbow') {
@@ -161,10 +191,32 @@ export default class Board {
             }
         });
 
-        if (candiesToRemove.size > 0) {
-            this.onMatch(Array.from(candiesToRemove), swappedCandies !== null);
+        // Chain reaction for powerups
+        const processedPowerups = new Set();
+        let powerupsInClearZone = Array.from(allCandiesToClear).filter(c => c.dataset.powerup);
+
+        while (powerupsInClearZone.length > 0) {
+            const currentPowerup = powerupsInClearZone.shift();
+            if (processedPowerups.has(currentPowerup)) continue;
+
+            processedPowerups.add(currentPowerup);
+            const affectedByPowerup = this.getAffectedCandies(currentPowerup);
             
-            candiesToRemove.forEach(candy => {
+            for (const affectedCandy of affectedByPowerup) {
+                if (!allCandiesToClear.has(affectedCandy)) {
+                    allCandiesToClear.add(affectedCandy);
+                    if (affectedCandy.dataset.powerup && !processedPowerups.has(affectedCandy)) {
+                        powerupsInClearZone.push(affectedCandy);
+                    }
+                }
+            }
+        }
+
+
+        if (allCandiesToClear.size > 0) {
+            this.onMatch(Array.from(allCandiesToClear), swappedCandies !== null);
+            
+            allCandiesToClear.forEach(candy => {
                 candy.classList.add('matched');
                 this.grid[parseInt(candy.dataset.row)][parseInt(candy.dataset.col)] = null;
             });
@@ -172,7 +224,7 @@ export default class Board {
         
         await this.pausableTimeout(300);
         
-        candiesToRemove.forEach(candy => candy.remove());
+        allCandiesToClear.forEach(candy => candy.remove());
         
         await this.dropCandies();
         await this.fillBoard();
@@ -336,4 +388,3 @@ export default class Board {
         return row >= 0 && row < this.size && col >= 0 && col < this.size;
     }
 }
-
