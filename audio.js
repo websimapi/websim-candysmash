@@ -95,7 +95,7 @@ export async function playBackgroundMusic(isReplay = false) {
         return;
     }
 
-    const sourceNode = audioContext.createBufferSource();
+    let sourceNode = audioContext.createBufferSource();
     sourceNode.buffer = audioBuffer;
     sourceNode.loop = true;
 

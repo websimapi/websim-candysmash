@@ -91,9 +91,19 @@ class Game {
         playBackgroundMusic();
         recorder.startRecording(this.board.grid);
         this.isRecordingStarted = true;
+        
+        // Record the initial cascade as an action for the replay.
+        recorder.recordAction({ type: 'initialCascade' });
 
         this.startTimer();
         this.inputHandler.enable();
+        
+        // Process any matches that exist at the start of the game
+        setTimeout(async () => {
+            this.isProcessing = true;
+            await this.board.processMatches(false, null);
+            this.isProcessing = false;
+        }, 500); // Small delay for visual clarity
     }
 
     setupUI() {

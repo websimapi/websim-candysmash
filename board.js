@@ -1,78 +1,82 @@
+import * as recorder from './recorder.js';
+import { playSound } from './audio.js';
+
 export default class Board {
-    constructor(size, candyTypes, onMatchCallback, randomTypeGenerator) {
+    constructor(size, candyTypes, onMatch, getNewCandyType, getIsPaused = () => false) {
         this.size = size;
         this.candyTypes = candyTypes;
-        this.onMatch = onMatchCallback;
         this.grid = [];
         this.boardElement = document.getElementById('game-board');
-        this.candySize = this.boardElement.clientWidth / size;
-        this.randomTypeGenerator = randomTypeGenerator || this.getRandomType.bind(this);
+        this.onMatch = onMatch;
+        this.getNewCandyType = getNewCandyType;
+        this.getIsPaused = getIsPaused;
+    }
+
+    pausableTimeout(duration) {
+        return new Promise(resolve => {
+            let start = performance.now();
+            let remaining = duration;
+
+            const tick = (now) => {
+                if (!this.getIsPaused()) {
+                    const elapsed = now - start;
+                    start = now;
+                    remaining -= elapsed;
+                }
+
+                if (remaining <= 0) {
+                    resolve();
+                } else {
+                    requestAnimationFrame(tick);
+                }
+            };
+            requestAnimationFrame(tick);
+        });
+    }
+
+    initialize(initialState) {
         this.setupBoard();
+        for (let r = 0; r < this.size; r++) {
+            this.grid[r] = [];
+            for (let c = 0; c < this.size; c++) {
+                const candyType = initialState[r][c];
+                this.grid[r][c] = this.createCandy(r, c, candyType, true);
+            }
+        }
     }
 
     setupBoard() {
         this.boardElement.style.gridTemplateColumns = `repeat(${this.size}, 1fr)`;
         this.boardElement.style.gridTemplateRows = `repeat(${this.size}, 1fr)`;
-        this.boardElement.parentElement.style.width = this.boardElement.style.width;
-        this.boardElement.parentElement.style.height = this.boardElement.style.height;
-        
-        // Use clientWidth which reflects the actual rendered size on screen
-        const boardWidth = this.boardElement.clientWidth;
-        this.candySize = boardWidth / this.size;
-    }
-
-    initialize(initialState = null) {
-        for (let row = 0; row < this.size; row++) {
-            this.grid[row] = [];
-            for (let col = 0; col < this.size; col++) {
-                const type = initialState ? initialState[row][col] : this.getRandomType();
-                this.grid[row][col] = this.createCandy(row, col, type, true, false);
-            }
-        }
-        // Ensure no matches on start unless it's a replay
-        if (!initialState) {
-            while(this.findAllMatches().length > 0) {
-                this.processMatches(true);
-            }
-        }
-    }
-
-    getRandomType() {
-        return this.candyTypes[Math.floor(Math.random() * this.candyTypes.length)];
     }
 
     createCandy(row, col, type, isInitializing = false, isReplay = false) {
-        if (!type) { // If type is not provided, get a random one
-            type = this.randomTypeGenerator();
-        }
         const candy = document.createElement('div');
+        const candyType = type || this.getNewCandyType(isInitializing);
+        
         candy.classList.add('candy');
         if (isReplay) {
             candy.classList.add('replay-candy');
         }
         candy.dataset.row = row;
         candy.dataset.col = col;
-        candy.dataset.type = type;
-        candy.style.backgroundImage = `url(${type})`;
-        candy.style.width = `${this.candySize}px`;
-        candy.style.height = `${this.candySize}px`;
+        candy.dataset.type = candyType;
+        candy.style.backgroundImage = `url(${candyType})`;
+        
+        const candySize = this.boardElement.clientWidth / this.size;
+        candy.style.width = `${candySize}px`;
+        candy.style.height = `${candySize}px`;
         
         if (isInitializing) {
-            candy.style.top = `${row * this.candySize}px`;
+            candy.style.top = `${row * candySize}px`;
+            candy.style.left = `${col * candySize}px`;
         } else {
-            // Start above the board for falling animation
-            candy.style.top = `${-this.candySize}px`;
+            // Start above the board for drop-in animation
+            candy.style.top = `${-candySize}px`;
+            candy.style.left = `${col * candySize}px`;
         }
-        
-        candy.style.left = `${col * this.candySize}px`;
-        this.boardElement.appendChild(candy);
 
-        // Animate falling into place
-        if(!isInitializing) {
-            setTimeout(() => {
-                candy.style.top = `${row * this.candySize}px`;
-            }, 10);
-        }
+        this.boardElement.appendChild(candy);
         return candy;
     }
 
@@ -86,50 +90,98 @@ export default class Board {
         this.grid[r1][c1] = candy2;
         this.grid[r2][c2] = candy1;
 
-        // Swap dataset attributes
-        [candy1.dataset.row, candy2.dataset.row] = [candy2.dataset.row, candy1.dataset.row];
-        [candy1.dataset.col, candy2.dataset.col] = [candy2.dataset.col, candy1.dataset.col];
+        // Swap datasets
+        candy1.dataset.row = r2;
+        candy1.dataset.col = c2;
+        candy2.dataset.row = r1;
+        candy2.dataset.col = c1;
+
+        // Animate swap
+        const candySize = this.boardElement.clientWidth / this.size;
+        candy1.style.top = `${r2 * candySize}px`;
+        candy1.style.left = `${c2 * candySize}px`;
+        candy2.style.top = `${r1 * candySize}px`;
+        candy2.style.left = `${c1 * candySize}px`;
+
+        playSound('nice_swipe.mp3');
+        recorder.recordSound('nice_swipe.mp3');
+        return this.pausableTimeout(300);
+    }
+
+    async processMatches(isInitializing = false, swappedCandies = null) {
+        const matchGroups = this.findMatchGroups();
+
+        if (matchGroups.length === 0) {
+            return swappedCandies !== null; // true if it was a player swap (even if no match), false otherwise
+        }
+
+        let totalMatchedCandies = [];
+        let createdPowerups = [];
+
+        for (const group of matchGroups) {
+            totalMatchedCandies = totalMatchedCandies.concat(group.candies);
+
+            // Power-up creation logic
+            let powerup = null;
+            if (swappedCandies) { // Only create powerups on player moves
+                const isSwapped = (c) => swappedCandies.includes(c);
+                if (group.type === 'five' && group.candies.some(isSwapped)) {
+                    powerup = { type: 'rainbow' };
+                } else if (group.type === 'L' || group.type === 'T') {
+                     powerup = { type: 'bomb' };
+                } else if (group.type === 'four') {
+                     powerup = group.candies[1].dataset.row === group.candies[0].dataset.row ? { type: 'row' } : { type: 'col' };
+                }
+            }
+            
+            if (powerup) {
+                const primaryCandy = group.candies.find(c => swappedCandies && swappedCandies.includes(c)) || group.candies[Math.floor(group.candies.length/2)];
+                const r = parseInt(primaryCandy.dataset.row);
+                const c = parseInt(primaryCandy.dataset.col);
+                
+                powerup.row = r;
+                powerup.col = c;
+                createdPowerups.push(powerup);
+            }
+        }
         
-        // Swap positions visually
-        [candy1.style.top, candy2.style.top] = [candy2.style.top, candy1.style.top];
-        [candy1.style.left, candy2.style.left] = [candy2.style.left, candy1.style.left];
+        const candiesToRemove = new Set(totalMatchedCandies);
 
-        return new Promise(resolve => setTimeout(resolve, 300));
-    }
-
-    isValid(row, col) {
-        return row >= 0 && row < this.size && col >= 0 && col < this.size;
-    }
-
-    findAllMatches() {
-        const matches = new Set();
-        // Horizontal matches
-        for (let r = 0; r < this.size; r++) {
-            for (let c = 0; c < this.size - 2; c++) {
-                if (this.grid[r][c] && this.grid[r][c+1] && this.grid[r][c+2] &&
-                    this.grid[r][c].dataset.type === this.grid[r][c+1].dataset.type &&
-                    this.grid[r][c+1].dataset.type === this.grid[r][c+2].dataset.type) {
-                    matches.add(this.grid[r][c]);
-                    matches.add(this.grid[r][c+1]);
-                    matches.add(this.grid[r][c+2]);
+        // Don't remove candies that are becoming powerups
+        createdPowerups.forEach(p => {
+            const candyToUpgrade = this.grid[p.row][p.col];
+            if (candyToUpgrade && candiesToRemove.has(candyToUpgrade)) {
+                candiesToRemove.delete(candyToUpgrade);
+                candyToUpgrade.dataset.powerup = p.type;
+                candyToUpgrade.classList.add(`powerup-${p.type}`);
+                 if (p.type === 'rainbow') {
+                    candyToUpgrade.dataset.type = 'candy_chocolate.png';
+                    candyToUpgrade.style.backgroundImage = `url(candy_chocolate.png)`;
                 }
             }
+        });
+
+        if (candiesToRemove.size > 0) {
+            this.onMatch(Array.from(candiesToRemove), swappedCandies !== null);
+            
+            candiesToRemove.forEach(candy => {
+                candy.classList.add('matched');
+                this.grid[parseInt(candy.dataset.row)][parseInt(candy.dataset.col)] = null;
+            });
         }
-        // Vertical matches
-        for (let c = 0; c < this.size; c++) {
-            for (let r = 0; r < this.size - 2; r++) {
-                if (this.grid[r][c] && this.grid[r+1][c] && this.grid[r+2][c] &&
-                    this.grid[r][c].dataset.type === this.grid[r+1][c].dataset.type &&
-                    this.grid[r+1][c].dataset.type === this.grid[r+2][c].dataset.type) {
-                    matches.add(this.grid[r][c]);
-                    matches.add(this.grid[r+1][c]);
-                    matches.add(this.grid[r+2][c]);
-                }
-            }
-        }
-        return Array.from(matches);
+        
+        await this.pausableTimeout(300);
+        
+        candiesToRemove.forEach(candy => candy.remove());
+        
+        await this.dropCandies();
+        await this.fillBoard();
+        
+        await this.processMatches(isInitializing, null);
+        
+        return true;
     }
-    
+
     findMatchGroups() {
         const groups = [];
         const visited = new Set();
@@ -139,138 +191,51 @@ export default class Board {
                 const candy = this.grid[r][c];
                 if (!candy || visited.has(candy)) continue;
 
-                // Horizontal check
-                const horizontalMatch = [candy];
-                for (let i = c + 1; i < this.size; i++) {
-                    const nextCandy = this.grid[r][i];
-                    if (nextCandy && nextCandy.dataset.type === candy.dataset.type) {
-                        horizontalMatch.push(nextCandy);
-                    } else {
-                        break;
-                    }
-                }
-                if (horizontalMatch.length >= 3) {
-                    groups.push({ candies: horizontalMatch, type: 'horizontal' });
-                    horizontalMatch.forEach(c => visited.add(c));
-                }
+                const matchRight = this.findMatchesInDirection(r, c, 0, 1);
+                const matchDown = this.findMatchesInDirection(r, c, 1, 0);
+                
+                let combined = [];
 
-                // Vertical check
-                const verticalMatch = [candy];
-                for (let i = r + 1; i < this.size; i++) {
-                    const nextCandy = this.grid[i][c];
-                    if (nextCandy && nextCandy.dataset.type === candy.dataset.type) {
-                        verticalMatch.push(nextCandy);
-                    } else {
-                        break;
+                if (matchRight.length >= 3) combined.push(...matchRight);
+                if (matchDown.length >= 3) combined.push(...matchDown);
+                
+                combined = [...new Set(combined)]; // Remove duplicates
+                
+                if (combined.length > 0) {
+                    let type = 'three';
+                    if (combined.length >= 5) type = 'five';
+                    else if (combined.length === 4) type = 'four';
+
+                    // Very basic L/T check
+                    if (matchRight.length >= 3 && matchDown.length >= 3) {
+                         type = 'L'; // Could also be a T
                     }
-                }
-                if (verticalMatch.length >= 3) {
-                    groups.push({ candies: verticalMatch, type: 'vertical' });
-                    verticalMatch.forEach(c => visited.add(c));
+
+                    groups.push({ candies: combined, type: type });
+                    combined.forEach(c => visited.add(c));
                 }
             }
         }
         return groups;
     }
 
-    async processMatches(isInitializing = false, swappedCandies = null) {
-        if (isInitializing) { // Fallback for initialization
-            const initialMatches = this.findAllMatches();
-            if (initialMatches.length === 0) return;
-            initialMatches.forEach(c => this.grid[c.dataset.row][c.dataset.col] = null);
-            initialMatches.forEach(c => c.remove());
-            await this.dropCandies();
-            await this.fillBoard();
-            return this.processMatches(true);
+    findMatchesInDirection(startR, startC, dR, dC) {
+        const matches = [];
+        const startCandy = this.grid[startR][startC];
+        if (!startCandy) return matches;
+
+        matches.push(startCandy);
+        
+        let r = startR + dR;
+        let c = startC + dC;
+        
+        while (this.isValid(r, c) && this.grid[r][c] && this.grid[r][c].dataset.type === startCandy.dataset.type) {
+            matches.push(this.grid[r][c]);
+            r += dR;
+            c += dC;
         }
-
-        const matchGroups = this.findMatchGroups();
-        if (matchGroups.length === 0) return false;
-
-        const candiesToRemove = new Set();
-        let createdPowerup = false;
-
-        for (const group of matchGroups) {
-            // Check for powerup activation
-            for (const candy of group.candies) {
-                if (candy.dataset.powerup) {
-                    this.activatePowerup(candy, candiesToRemove);
-                }
-            }
-        }
-
-        // Sort groups by size to prioritize larger matches for power-ups
-        matchGroups.sort((a, b) => b.candies.length - a.candies.length);
-
-        for (const group of matchGroups) {
-            const isSwappedCandyInMatch = swappedCandies && group.candies.some(c => swappedCandies.includes(c));
-            const canCreatePowerup = isSwappedCandyInMatch || !swappedCandies;
-            const candyToConvertToPowerup = swappedCandies ? (group.candies.find(c => swappedCandies.includes(c)) || group.candies[0]) : group.candies[0];
-
-            // Power-up Creation
-            if (group.candies.length >= 5 && !createdPowerup && canCreatePowerup) {
-                createdPowerup = true;
-                candyToConvertToPowerup.dataset.powerup = 'rainbow';
-                candyToConvertToPowerup.style.backgroundImage = 'url(candy_chocolate.png)';
-                candyToConvertToPowerup.classList.add('powerup-rainbow');
-                // Don't change dataset.type, we need it if it's swapped with another powerup
-                group.candies.forEach(c => { if (c !== candyToConvertToPowerup) candiesToRemove.add(c); });
-                continue;
-            }
-            
-            if (group.candies.length === 4 && !createdPowerup && canCreatePowerup) {
-                createdPowerup = true;
-                const powerupType = group.type === 'horizontal' ? 'col' : 'row';
-                candyToConvertToPowerup.dataset.powerup = powerupType;
-                candyToConvertToPowerup.classList.add(`powerup-${powerupType}`);
-                group.candies.forEach(c => { if (c !== candyToConvertToPowerup) candiesToRemove.add(c); });
-                continue;
-            }
-            
-            group.candies.forEach(c => candiesToRemove.add(c));
-        }
-
-        if (candiesToRemove.size > 0) {
-            if(!isInitializing) this.onMatch(Array.from(candiesToRemove), !!swappedCandies);
-    
-            for (const candy of candiesToRemove) {
-                candy.classList.add('matched');
-                const r = parseInt(candy.dataset.row);
-                const c = parseInt(candy.dataset.col);
-                if (this.grid[r] && this.grid[r][c] === candy) {
-                    this.grid[r][c] = null;
-                }
-            }
-    
-            await new Promise(resolve => setTimeout(resolve, 300));
-            
-            candiesToRemove.forEach(candy => candy.remove());
-            
-            await this.dropCandies();
-            await this.fillBoard();
-            
-            await this.processMatches(isInitializing, null);
-        }
-
-        return true;
-    }
-
-    activatePowerup(candy, candiesToRemove) {
-        const r = parseInt(candy.dataset.row);
-        const c = parseInt(candy.dataset.col);
-        candiesToRemove.add(candy);
-
-        if (candy.dataset.powerup === 'row') {
-            for (let i = 0; i < this.size; i++) {
-                if (this.grid[r][i]) candiesToRemove.add(this.grid[r][i]);
-            }
-        } else if (candy.dataset.powerup === 'col') {
-            for (let i = 0; i < this.size; i++) {
-                if (this.grid[i][c]) candiesToRemove.add(this.grid[i][c]);
-            }
-        }
-        delete candy.dataset.powerup;
-        candy.classList.remove('powerup-row', 'powerup-col');
+        
+        return matches;
     }
 
     async smashCandies(candiesToSmash) {
@@ -278,17 +243,17 @@ export default class Board {
         
         // This is a smash, not a player-made match, so isPlayerMove is false.
         this.onMatch(candiesToSmash, false);
-
-        for (const candy of candiesToSmash) {
-            candy.classList.add('matched'); // Reuse matched animation
+        
+        candiesToSmash.forEach(candy => {
+            candy.classList.add('matched');
             const r = parseInt(candy.dataset.row);
             const c = parseInt(candy.dataset.col);
             if (this.grid[r] && this.grid[r][c] === candy) {
-                this.grid[r][c] = null;
+                 this.grid[r][c] = null;
             }
-        }
+        });
 
-        await new Promise(resolve => setTimeout(resolve, 300));
+        await this.pausableTimeout(300);
         
         candiesToSmash.forEach(candy => candy.remove());
         
@@ -305,34 +270,27 @@ export default class Board {
 
         for (let r = 0; r < this.size; r++) {
             for (let c = 0; c < this.size; c++) {
-                const candy = this.grid[r][c];
-                if (candy && candy.dataset.type === targetType) {
-                    candiesToRemove.add(candy);
+                if (this.grid[r][c] && this.grid[r][c].dataset.type === targetType) {
+                    candiesToRemove.add(this.grid[r][c]);
                 }
             }
         }
 
-        if (candiesToRemove.size > 0) {
-            this.onMatch(Array.from(candiesToRemove), true);
+        this.onMatch(Array.from(candiesToRemove), true);
+        
+        candiesToRemove.forEach(candy => {
+            candy.classList.add('matched');
+            this.grid[parseInt(candy.dataset.row)][parseInt(candy.dataset.col)] = null;
+        });
 
-            for (const candy of candiesToRemove) {
-                candy.classList.add('matched');
-                const r = parseInt(candy.dataset.row);
-                const c = parseInt(candy.dataset.col);
-                if (this.grid[r] && this.grid[r][c] === candy) {
-                    this.grid[r][c] = null;
-                }
-            }
-
-            await new Promise(resolve => setTimeout(resolve, 300));
-            
-            candiesToRemove.forEach(candy => candy.remove());
-            
-            await this.dropCandies();
-            await this.fillBoard();
-            
-            await this.processMatches(false, null);
-        }
+        await this.pausableTimeout(300);
+        
+        candiesToRemove.forEach(candy => candy.remove());
+        
+        await this.dropCandies();
+        await this.fillBoard();
+        
+        await this.processMatches(false, null);
     }
 
     async dropCandies() {
@@ -340,27 +298,42 @@ export default class Board {
             let emptyRow = this.size - 1;
             for (let r = this.size - 1; r >= 0; r--) {
                 if (this.grid[r][c]) {
-                    if (r !== emptyRow) {
+                    if (emptyRow !== r) {
+                        // Move candy down
                         this.grid[emptyRow][c] = this.grid[r][c];
                         this.grid[r][c] = null;
                         this.grid[emptyRow][c].dataset.row = emptyRow;
-                        this.grid[emptyRow][c].style.top = `${emptyRow * this.candySize}px`;
+                        
+                        const candySize = this.boardElement.clientWidth / this.size;
+                        this.grid[emptyRow][c].style.top = `${emptyRow * candySize}px`;
                     }
                     emptyRow--;
                 }
             }
         }
-        return new Promise(resolve => setTimeout(resolve, 300));
+        return this.pausableTimeout(300);
     }
-
+    
     async fillBoard(isReplay = false) {
+        const candySize = this.boardElement.clientWidth / this.size;
         for (let r = 0; r < this.size; r++) {
             for (let c = 0; c < this.size; c++) {
                 if (!this.grid[r][c]) {
-                    this.grid[r][c] = this.createCandy(r, c, undefined, false, isReplay);
+                    const candy = this.createCandy(r, c, undefined, false, isReplay);
+                    this.grid[r][c] = candy;
+                    // Animate the drop
+                    await new Promise(resolve => requestAnimationFrame(() => {
+                        candy.style.top = `${r * candySize}px`;
+                        resolve();
+                    }));
                 }
             }
         }
-        return new Promise(resolve => setTimeout(resolve, 300));
+        return this.pausableTimeout(300);
+    }
+
+    isValid(row, col) {
+        return row >= 0 && row < this.size && col >= 0 && col < this.size;
     }
 }
+
