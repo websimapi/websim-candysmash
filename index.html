@@ -23,16 +23,31 @@
         <div id="game-board-container">
             <div id="combo-display"></div>
             <div id="game-board"></div>
+            <div id="start-overlay">
+                <button id="start-button">Start</button>
+            </div>
         </div>
         <div id="game-footer">
             <div id="timer-container">Time: <span id="timer">15</span></div>
             <div id="score-container">Score: <span id="score">0</span></div>
+            <div id="clip-button-container">
+                <button id="clip-button" aria-label="Show Replay"></button>
+            </div>
             <div id="smash-container">
                 <div id="smash-button">
                     <div id="smash-fluid"></div>
                     <span id="smash-value">0</span>
                 </div>
             </div>
+        </div>
+    </div>
+    <div id="replay-modal" class="hidden">
+        <div id="replay-container">
+            <div id="replay-board"></div>
+            <div id="replay-controls">
+                <button id="play-pause-button">&#9658;</button> <!-- Play Icon -->
+            </div>
+            <button id="close-replay-button">&times;</button>
         </div>
     </div>
     <script type="module" src="game.js"></script>

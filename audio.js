@@ -1,6 +1,10 @@
 const audioContext = new (window.AudioContext || window.webkitAudioContext)();
 const audioBuffers = {};
 
+// Master gain
+const masterGainNode = audioContext.createGain();
+masterGainNode.connect(audioContext.destination);
+
 // Background music state
 let bgmSource = null;
 let bgmGainNode = null;
@@ -12,6 +16,8 @@ const BGM_CONFIG = {
     fadeOut: 15,
     maxVolume: 0.3
 };
+let isBgmPaused = false;
+let updateBgmAnimationId = null;
 
 async function loadSound(name) {
     if (audioBuffers[name]) {
@@ -38,13 +44,14 @@ export function playSound(name) {
         if (!audioBuffer) return;
         const source = audioContext.createBufferSource();
         source.buffer = audioBuffer;
-        source.connect(audioContext.destination);
+        source.connect(masterGainNode);
         source.start(0);
     });
 }
 
 function updateBgmVolume() {
     if (!bgmGainNode || !bgmStartTime) {
+        cancelAnimationFrame(updateBgmAnimationId);
         return;
     }
 
@@ -68,38 +75,125 @@ function updateBgmVolume() {
     // Use setValueAtTime for smooth transitions
     bgmGainNode.gain.setValueAtTime(gain, audioContext.currentTime);
 
-    requestAnimationFrame(updateBgmVolume);
+    updateBgmAnimationId = requestAnimationFrame(updateBgmVolume);
 }
 
-export async function playBackgroundMusic() {
+export async function playBackgroundMusic(isReplay = false) {
     // Resume context on user gesture if needed
     if (audioContext.state === 'suspended') {
         await audioContext.resume();
     }
-
-    if (bgmSource) {
-        return; // Already playing
-    }
     
+    // Don't start a new one if it's the main BGM and it's already running
+    if (!isReplay && bgmSource) {
+        return;
+    }
+
     const audioBuffer = await loadSound(BGM_CONFIG.name);
     if (!audioBuffer) {
         console.error("Background music failed to load.");
         return;
     }
 
-    bgmGainNode = audioContext.createGain();
-    bgmGainNode.gain.value = 0;
-    bgmGainNode.connect(audioContext.destination);
+    const sourceNode = audioContext.createBufferSource();
+    sourceNode.buffer = audioBuffer;
+    sourceNode.loop = true;
 
-    bgmSource = audioContext.createBufferSource();
-    bgmSource.buffer = audioBuffer;
-    bgmSource.loop = true;
-    bgmSource.connect(bgmGainNode);
+    const gainNode = audioContext.createGain();
+    gainNode.gain.value = BGM_CONFIG.maxVolume; // Start at max volume for simplicity in replay
+    gainNode.connect(masterGainNode);
     
-    bgmSource.start(0);
-    bgmStartTime = audioContext.currentTime;
+    sourceNode.connect(gainNode);
+    sourceNode.start(0);
 
-    updateBgmVolume();
+    if (isReplay) {
+        let pausedAt = 0;
+        let startedAt = audioContext.currentTime;
+        let isPaused = false;
+        
+        // For replays, return a controller to stop it later
+        return {
+            stop: () => {
+                sourceNode.stop();
+                sourceNode.disconnect();
+                gainNode.disconnect();
+            },
+            pause: () => {
+                if (isPaused) return;
+                isPaused = true;
+                pausedAt = audioContext.currentTime - startedAt;
+                sourceNode.stop();
+            },
+            resume: () => {
+                if (!isPaused) return;
+                isPaused = false;
+                
+                // Create a new source node to resume playback.
+                const newSourceNode = audioContext.createBufferSource();
+                newSourceNode.buffer = sourceNode.buffer;
+                newSourceNode.loop = sourceNode.loop;
+                newSourceNode.connect(gainNode);
+                newSourceNode.start(0, pausedAt % newSourceNode.buffer.duration);
+                
+                // update references
+                sourceNode = newSourceNode;
+                startedAt = audioContext.currentTime - pausedAt;
+            }
+        };
+    } else {
+        // For main game BGM, manage it with the global variables
+        bgmSource = sourceNode;
+        bgmGainNode = gainNode;
+        bgmStartTime = audioContext.currentTime;
+        bgmGainNode.gain.value = 0; // Reset for fade-in logic
+        
+        cancelAnimationFrame(updateBgmAnimationId); // Stop any previous animation loop
+        updateBgmVolume();
+    }
+}
+
+export function stopBackgroundMusic() {
+    if (bgmSource) {
+        bgmSource.stop();
+        bgmSource.disconnect();
+        bgmSource = null;
+        cancelAnimationFrame(updateBgmAnimationId);
+        updateBgmAnimationId = null;
+    }
+    if (bgmGainNode) {
+        bgmGainNode.disconnect();
+        bgmGainNode = null;
+    }
+}
+
+
+export function pauseBackgroundMusic() {
+    if (bgmGainNode) {
+        isBgmPaused = true;
+        bgmGainNode.disconnect();
+    }
+}
+
+export function resumeBackgroundMusic() {
+    if (bgmGainNode && isBgmPaused) {
+        isBgmPaused = false;
+        bgmGainNode.connect(masterGainNode);
+    }
+}
+
+
+export function muteGameAudio() {
+    if (audioContext.state === 'suspended') {
+        audioContext.resume();
+    }
+    masterGainNode.gain.setValueAtTime(0, audioContext.currentTime);
+}
+
+export function unmuteGameAudio() {
+    if (audioContext.state === 'suspended') {
+        audioContext.resume();
+    }
+    masterGainNode.gain.setValueAtTime(1, audioContext.currentTime);
 }
 
 // Preload common sounds

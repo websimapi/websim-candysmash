@@ -1,11 +1,12 @@
 export default class Board {
-    constructor(size, candyTypes, onMatchCallback) {
+    constructor(size, candyTypes, onMatchCallback, randomTypeGenerator) {
         this.size = size;
         this.candyTypes = candyTypes;
         this.onMatch = onMatchCallback;
         this.grid = [];
         this.boardElement = document.getElementById('game-board');
         this.candySize = this.boardElement.clientWidth / size;
+        this.randomTypeGenerator = randomTypeGenerator || this.getRandomType.bind(this);
         this.setupBoard();
     }
 
@@ -20,23 +21,35 @@ export default class Board {
         this.candySize = boardWidth / this.size;
     }
 
-    initialize() {
+    initialize(initialState = null) {
         for (let row = 0; row < this.size; row++) {
             this.grid[row] = [];
             for (let col = 0; col < this.size; col++) {
-                this.grid[row][col] = this.createCandy(row, col, true);
+                const type = initialState ? initialState[row][col] : this.getRandomType();
+                this.grid[row][col] = this.createCandy(row, col, type, true, false);
             }
         }
-        // Ensure no matches on start
-        while(this.findAllMatches().length > 0) {
-            this.processMatches(true);
+        // Ensure no matches on start unless it's a replay
+        if (!initialState) {
+            while(this.findAllMatches().length > 0) {
+                this.processMatches(true);
+            }
         }
     }
 
-    createCandy(row, col, isInitializing = false) {
-        const type = this.candyTypes[Math.floor(Math.random() * this.candyTypes.length)];
+    getRandomType() {
+        return this.candyTypes[Math.floor(Math.random() * this.candyTypes.length)];
+    }
+
+    createCandy(row, col, type, isInitializing = false, isReplay = false) {
+        if (!type) { // If type is not provided, get a random one
+            type = this.randomTypeGenerator();
+        }
         const candy = document.createElement('div');
         candy.classList.add('candy');
+        if (isReplay) {
+            candy.classList.add('replay-candy');
+        }
         candy.dataset.row = row;
         candy.dataset.col = col;
         candy.dataset.type = type;
@@ -340,11 +353,11 @@ export default class Board {
         return new Promise(resolve => setTimeout(resolve, 300));
     }
 
-    async fillBoard() {
+    async fillBoard(isReplay = false) {
         for (let r = 0; r < this.size; r++) {
             for (let c = 0; c < this.size; c++) {
                 if (!this.grid[r][c]) {
-                    this.grid[r][c] = this.createCandy(r, c);
+                    this.grid[r][c] = this.createCandy(r, c, undefined, false, isReplay);
                 }
             }
         }

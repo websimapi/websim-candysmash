@@ -44,6 +44,25 @@ h1 {
     font-size: 1.2em;
 }
 
+#clip-button-container {
+    flex-grow: 1;
+    display: flex;
+    justify-content: center;
+}
+
+#clip-button {
+    width: 40px;
+    height: 40px;
+    background-image: url('clip_icon.png');
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-color: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+}
+
 #score-container {
     color: #5c3c54;
     font-size: 1em; /* Adjusted to fit the bar */
@@ -110,6 +129,44 @@ h1 {
 #combo-display.visible {
     opacity: 1;
     transform: translate(-50%, -50%) scale(1.2);
+}
+
+#start-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(255, 235, 248, 0.85);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 150;
+    border-radius: 10px;
+    transition: opacity 0.3s ease-out;
+}
+
+#start-overlay.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+#start-button {
+    padding: 20px 40px;
+    font-size: 2em;
+    font-family: 'Comic Sans MS', 'Chalkboard SE', 'Marker Felt', sans-serif;
+    background-color: #d63384;
+    color: white;
+    border: 3px solid white;
+    border-radius: 20px;
+    cursor: pointer;
+    box-shadow: 0 5px 10px rgba(0,0,0,0.3);
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+    transition: transform 0.1s ease;
+}
+
+#start-button:active {
+    transform: scale(0.95);
 }
 
 #game-board {
@@ -182,4 +239,102 @@ h1 {
     border-radius: 5px;
     transform: translateX(-50%);
     box-shadow: 0 0 4px white;
+}
+
+/* Replay Modal Styles */
+#replay-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 200;
+}
+
+#replay-modal.hidden {
+    display: none;
+}
+
+#replay-container {
+    position: relative;
+    width: 95vw;
+    max-width: 540px;
+    box-sizing: border-box;
+    background: #ffebf8;
+    padding: 10px;
+    border-radius: 20px;
+    box-shadow: 0 0 20px rgba(0,0,0,0.2);
+    border: 5px solid #fff;
+}
+
+#replay-board {
+    display: grid;
+    border: 5px solid #e7a5d3;
+    background-color: rgba(255, 255, 255, 0.5);
+    position: relative;
+    box-shadow: inset 0 0 10px rgba(0,0,0,0.1);
+    border-radius: 10px;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+}
+
+#replay-controls {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 250;
+    pointer-events: none; /* Allows clicks to go through to board if needed, but we will handle it on the container */
+}
+
+#play-pause-button {
+    width: 80px;
+    height: 80px;
+    background-color: rgba(0, 0, 0, 0.5);
+    border: 3px solid white;
+    border-radius: 50%;
+    color: white;
+    font-size: 40px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: all;
+}
+
+#replay-container:hover #play-pause-button {
+    opacity: 1;
+}
+
+#play-pause-button.playing {
+    opacity: 0;
+}
+
+
+#close-replay-button {
+    position: absolute;
+    top: -15px;
+    right: -15px;
+    width: 40px;
+    height: 40px;
+    background: #d63384;
+    color: white;
+    border: 3px solid white;
+    border-radius: 50%;
+    font-size: 2em;
+    font-weight: bold;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0;
+    padding-bottom: 4px; /*- Vertical alignment adjust */
+    box-shadow: 0 4px 6px rgba(0,0,0,0.2);
 }

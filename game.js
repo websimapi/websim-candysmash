@@ -1,6 +1,8 @@
 import Board from './board.js';
 import InputHandler from './input.js';
-import { playSound } from './audio.js';
+import Replay from './replay.js';
+import { playSound, pauseBackgroundMusic, resumeBackgroundMusic, stopBackgroundMusic, playBackgroundMusic } from './audio.js';
+import * as recorder from './recorder.js';
 import confetti from 'confetti';
 
 const config = {
@@ -26,10 +28,11 @@ const POSITIVE_FEEDBACK_SOUNDS = [
 
 class Game {
     constructor() {
-        this.board = new Board(config.boardSize, config.candyTypes, this.onMatch.bind(this));
+        this.board = new Board(config.boardSize, config.candyTypes, this.onMatch.bind(this), this.getNewCandyType.bind(this));
         this.score = 0;
         this.scoreElement = document.getElementById('score');
         this.isProcessing = false;
+        this.isGameStarted = false;
 
         this.comboCount = 0;
         this.comboDisplay = document.getElementById('combo-display');
@@ -44,12 +47,57 @@ class Game {
         this.timerInterval = null;
         this.isTimerPaused = false;
         
+        // Replay logic is now in its own class
+        this.replay = new Replay(this, config);
+        this.isRecordingStarted = false;
+        
         this.inputHandler = new InputHandler(this.board.boardElement, this.onSwap.bind(this), this.onSmash.bind(this));
         
+        this.setupUI();
         this.updateScore(0);
         this.updateSmashUI();
+        this.initializeBoard();
+    }
+
+    initializeBoard() {
+        // Pre-generate initial state so we can record it before the game starts
+        const initialState = [];
+        for (let r = 0; r < config.boardSize; r++) {
+            initialState[r] = [];
+            for (let c = 0; c < config.boardSize; c++) {
+                initialState[r][c] = this.getNewCandyType(true); // isInitial is true
+            }
+        }
+        this.board.initialize(initialState);
+    }
+
+    getNewCandyType(isInitial = false) {
+        const type = config.candyTypes[Math.floor(Math.random() * config.candyTypes.length)];
+        
+        // Only record new candies after the game has officially started
+        // and the initial board state has been recorded.
+        if (!isInitial && this.isRecordingStarted) {
+            recorder.recordAction({ type: 'newCandy', candyType: type });
+        }
+        return type;
+    }
+
+    startGame() {
+        if (this.isGameStarted) return;
+        this.isGameStarted = true;
+
+        document.getElementById('start-overlay').classList.add('hidden');
+        
+        playBackgroundMusic();
+        recorder.startRecording(this.board.grid);
+        this.isRecordingStarted = true;
+
         this.startTimer();
-        this.board.initialize();
+        this.inputHandler.enable();
+    }
+
+    setupUI() {
+        document.getElementById('start-button').addEventListener('click', () => this.startGame());
     }
 
     startTimer() {
@@ -62,6 +110,10 @@ class Game {
                 if (this.smashValue > 0) {
                     this.smashValue--;
                     this.updateSmashUI();
+                } else {
+                    // Game over / round over condition
+                    recorder.resetRecording();
+                    this.isRecordingStarted = false;
                 }
                 this.smashProgress = 0; // Reset progress if timer runs out
                 this.updateSmashUI();
@@ -81,6 +133,15 @@ class Game {
 
     resumeTimer() {
         this.isTimerPaused = false;
+    }
+
+    // Add BGM control methods for the replay module to call
+    pauseMainBGM() {
+        pauseBackgroundMusic();
+    }
+
+    resumeMainBGM() {
+        resumeBackgroundMusic();
     }
 
     updateComboUI() {
@@ -108,6 +169,7 @@ class Game {
 
     onMatch(matchedCandies, isPlayerMove) {
         playSound('match.mp3');
+        recorder.recordSound('match.mp3');
         this.updateScore(matchedCandies.length * config.pointsPerCandy);
         
         this.comboCount++;
@@ -116,13 +178,17 @@ class Game {
         // Audio feedback
         if (this.comboCount === 6) {
             playSound('combo_6.mp3');
+            recorder.recordSound('combo_6.mp3');
         } else if (this.comboCount === 7) {
             playSound('combo_7.mp3');
+            recorder.recordSound('combo_7.mp3');
         } else if (this.comboCount > 2) {
              playSound('crunch_combo.mp3');
+             recorder.recordSound('crunch_combo.mp3');
         } else if (isPlayerMove) {
             const randomSound = POSITIVE_FEEDBACK_SOUNDS[Math.floor(Math.random() * POSITIVE_FEEDBACK_SOUNDS.length)];
             playSound(randomSound);
+            recorder.recordSound(randomSound);
         }
         
         if (isPlayerMove) {
@@ -201,13 +267,16 @@ class Game {
             return;
         }
         
+        const smashedCoords = Array.from(candiesToSmash).map(c => ({
+            r: parseInt(c.dataset.row),
+            c: parseInt(c.dataset.col)
+        }));
+        if (this.isRecordingStarted) recorder.recordAction({ type: 'smash', smashed: smashedCoords });
+
         this.smashValue -= smashCost;
         this.updateSmashUI();
         playSound('smash.mp3');
-        
-        const smashSounds = ['smash_success.mp3', 'sweet_mash.mp3'];
-        const randomSmashSound = smashSounds[Math.floor(Math.random() * smashSounds.length)];
-        setTimeout(() => playSound(randomSmashSound), 200); // Play after the main smash sound
+        recorder.recordSound('smash.mp3');
         
         // Pass a flag to indicate this is a smash action
         await this.board.smashCandies(Array.from(candiesToSmash));
@@ -222,6 +291,12 @@ class Game {
         this.pauseTimer();
         this.comboCount = 0; // Reset combo on new player move
         
+        const r1 = parseInt(candy1.dataset.row);
+        const c1 = parseInt(candy1.dataset.col);
+        const r2 = parseInt(candy2.dataset.row);
+        const c2 = parseInt(candy2.dataset.col);
+        if (this.isRecordingStarted) recorder.recordAction({ type: 'swap', from: { r: r1, c: c1 }, to: { r: r2, c: c2 } });
+
         const candy1Powerup = candy1.dataset.powerup;
         const candy2Powerup = candy2.dataset.powerup;
 
