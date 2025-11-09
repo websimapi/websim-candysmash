@@ -109,6 +109,16 @@ h1 {
 
 #game-board-container {
     position: relative;
+    transition: filter 0.5s ease;
+}
+
+#game-board-container.rainbow-mode {
+    animation: rainbow-cycle 5s linear infinite;
+}
+
+@keyframes rainbow-cycle {
+    0%   { filter: hue-rotate(0deg); }
+    100% { filter: hue-rotate(360deg); }
 }
 
 #combo-display {
@@ -123,12 +133,20 @@ h1 {
     text-shadow: 3px 3px 0 #d63384, -1px -1px 0 #d63384, 1px -1px 0 #d63384, -1px 1px 0 #d63384, 1px 1px 0 #d63384;
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.2s ease-out, transform 0.2s ease-out;
+    transition: opacity 0.2s ease-out, transform 0.2s ease-out, top 0.3s ease, left 0.3s ease, font-size 0.3s ease;
 }
 
 #combo-display.visible {
     opacity: 1;
     transform: translate(-50%, -50%) scale(1.2);
+}
+
+#combo-display.rainbow {
+    top: 10px;
+    left: 10px;
+    font-size: 2em;
+    transform: translate(0, 0) scale(1);
+    text-shadow: 2px 2px 0 #d63384, -1px -1px 0 #d63384, 1px -1px 0 #d63384, -1px 1px 0 #d63384, 1px 1px 0 #d63384;
 }
 
 #start-overlay {

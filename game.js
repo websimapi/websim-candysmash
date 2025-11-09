@@ -46,6 +46,8 @@ class Game {
         this.timerElement = document.getElementById('timer');
         this.timerInterval = null;
         this.isTimerPaused = false;
+        this.isRainbowMode = false;
+        this.rainbowComboTimeout = null;
         
         // Replay logic is now in its own class
         this.replay = new Replay(this, config);
@@ -155,15 +157,24 @@ class Game {
     }
 
     updateComboUI() {
-        if (this.comboCount < 2) return;
+        if (this.comboCount < 2) {
+            if (!this.isRainbowMode) {
+                this.comboDisplay.classList.remove('visible');
+            }
+            return;
+        }
 
         this.comboDisplay.textContent = `Combo x${this.comboCount}`;
         this.comboDisplay.classList.add('visible');
 
-        clearTimeout(this.comboTimeout);
-        this.comboTimeout = setTimeout(() => {
-            this.comboDisplay.classList.remove('visible');
-        }, 1500);
+        if (!this.isRainbowMode) {
+            clearTimeout(this.comboTimeout);
+            this.comboTimeout = setTimeout(() => {
+                this.comboDisplay.classList.remove('visible');
+            }, 1500);
+        } else {
+            clearTimeout(this.comboTimeout); // Ensure normal timeout is cleared
+        }
     }
 
     updateSmashUI() {
@@ -178,12 +189,24 @@ class Game {
     }
 
     onMatch(matchedCandies, isPlayerMove) {
+        if (this.isRainbowMode) {
+            clearTimeout(this.rainbowComboTimeout);
+        }
+
         playSound('match.mp3');
         recorder.recordSound('match.mp3');
         this.updateScore(matchedCandies.length * config.pointsPerCandy);
         
         this.comboCount++;
         this.updateComboUI();
+
+        if (this.comboCount >= 8 && !this.isRainbowMode) {
+            this.startRainbowMode();
+        }
+
+        if (this.isRainbowMode) {
+            this.rainbowComboTimeout = setTimeout(() => this.endRainbowMode(), 2000);
+        }
 
         // Audio feedback
         if (this.comboCount === 6) {
@@ -234,6 +257,25 @@ class Game {
                 origin: { y: 0.6 }
             });
         }
+    }
+
+    startRainbowMode() {
+        this.isRainbowMode = true;
+        document.getElementById('game-board-container').classList.add('rainbow-mode');
+        this.comboDisplay.classList.add('rainbow');
+        clearTimeout(this.comboTimeout);
+        playSound('smash_success.mp3');
+        recorder.recordSound('smash_success.mp3');
+    }
+
+    endRainbowMode() {
+        this.isRainbowMode = false;
+        document.getElementById('game-board-container').classList.remove('rainbow-mode');
+        this.comboDisplay.classList.remove('rainbow');
+        this.comboDisplay.classList.remove('visible');
+        this.comboCount = 0;
+        clearTimeout(this.rainbowComboTimeout);
+        this.rainbowComboTimeout = null;
     }
 
     async onSmash(candy) {
@@ -299,7 +341,9 @@ class Game {
         if (this.isProcessing) return;
         this.isProcessing = true;
         this.pauseTimer();
-        this.comboCount = 0; // Reset combo on new player move
+        if (!this.isRainbowMode) {
+            this.comboCount = 0; // Reset combo on new player move, unless in rainbow mode
+        }
         
         const r1 = parseInt(candy1.dataset.row);
         const c1 = parseInt(candy1.dataset.col);
@@ -324,8 +368,8 @@ class Game {
         await this.board.swapCandies(candy1, candy2);
         const isValidSwap = await this.board.processMatches(false, [candy1, candy2]);
 
-        if (!isValidSwap) {
-            // If no matches, swap back
+        if (!isValidSwap && this.comboCount < 6) {
+            // If no matches, swap back, unless in high-combo mode
             await this.board.swapCandies(candy1, candy2);
         }
         

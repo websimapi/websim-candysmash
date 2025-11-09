@@ -112,7 +112,7 @@ export default class Board {
         const matchGroups = this.findMatchGroups();
 
         if (matchGroups.length === 0) {
-            return swappedCandies !== null; // true if it was a player swap (even if no match), false otherwise
+            return false; // No matches found, invalid move if it was a swap.
         }
 
         let totalMatchedCandies = [];
