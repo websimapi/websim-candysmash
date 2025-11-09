@@ -266,6 +266,7 @@ class Game {
         clearTimeout(this.comboTimeout);
         playSound('smash_success.mp3');
         recorder.recordSound('smash_success.mp3');
+        recorder.recordAction({ type: 'startRainbow' });
     }
 
     endRainbowMode() {
@@ -276,6 +277,7 @@ class Game {
         this.comboCount = 0;
         clearTimeout(this.rainbowComboTimeout);
         this.rainbowComboTimeout = null;
+        recorder.recordAction({ type: 'endRainbow' });
     }
 
     async onSmash(candy) {
@@ -349,8 +351,7 @@ class Game {
         const c1 = parseInt(candy1.dataset.col);
         const r2 = parseInt(candy2.dataset.row);
         const c2 = parseInt(candy2.dataset.col);
-        if (this.isRecordingStarted) recorder.recordAction({ type: 'swap', from: { r: r1, c: c1 }, to: { r: r2, c: c2 } });
-
+        
         const candy1Powerup = candy1.dataset.powerup;
         const candy2Powerup = candy2.dataset.powerup;
 
@@ -358,12 +359,22 @@ class Game {
             const rainbowCandy = candy1Powerup === 'rainbow' ? candy1 : candy2;
             const otherCandy = candy1Powerup === 'rainbow' ? candy2 : candy1;
             
+            if (this.isRecordingStarted) {
+                recorder.recordAction({
+                    type: 'activateRainbow',
+                    rainbowCandy: { r: parseInt(rainbowCandy.dataset.row), c: parseInt(rainbowCandy.dataset.col) },
+                    otherCandy: { r: parseInt(otherCandy.dataset.row), c: parseInt(otherCandy.dataset.col) }
+                });
+            }
+            
             // We don't need to swap visually, just activate
             await this.board.activateRainbowPowerup(rainbowCandy, otherCandy);
             this.isProcessing = false;
             this.resumeTimer();
             return;
         }
+        
+        if (this.isRecordingStarted) recorder.recordAction({ type: 'swap', from: { r: r1, c: c1 }, to: { r: r2, c: c2 } });
         
         await this.board.swapCandies(candy1, candy2);
         const isValidSwap = await this.board.processMatches(false, [candy1, candy2]);
