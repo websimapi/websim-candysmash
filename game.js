@@ -201,12 +201,12 @@ class Game {
         if (this.isRecordingStarted) recorder.recordAction({ type: 'comboUpdate', count: this.comboCount });
         this.updateComboUI();
 
-        if (this.comboCount >= 8 && !this.isRainbowMode) {
+        if (this.comboCount >= 7 && !this.isRainbowMode) {
             this.startRainbowMode();
         }
 
         if (this.isRainbowMode) {
-            this.rainbowComboTimeout = setTimeout(() => this.endRainbowMode(), 2000);
+            this.rainbowComboTimeout = setTimeout(() => this.endRainbowMode(), 3500);
         }
 
         // Audio feedback
